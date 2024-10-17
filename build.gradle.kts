@@ -10,6 +10,7 @@ repositories {
 }
 
 dependencies {
+    implementation("io.xconn:wampproto:0.1.0")
     testImplementation(kotlin("test"))
 }
 
