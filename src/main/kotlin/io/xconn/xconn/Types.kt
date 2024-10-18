@@ -1,7 +1,7 @@
 package io.xconn.xconn
 
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
-import io.ktor.websocket.*
+import io.ktor.websocket.close
 import io.xconn.wampproto.SessionDetails
 import io.xconn.wampproto.messages.Message
 import io.xconn.wampproto.serializers.Serializer
@@ -73,22 +73,5 @@ class BaseSession(
 
     override suspend fun close() {
         webSocketSession.close()
-    }
-}
-
-
-internal suspend fun DefaultWebSocketSession.sendFrame(data: Any) {
-    when (data) {
-        is String -> outgoing.send(Frame.Text(data))
-        is ByteArray -> outgoing.send(Frame.Binary(true, data))
-        else -> throw IllegalArgumentException("Unsupported frame type")
-    }
-}
-
-internal fun receiveFrame(frame: Frame): Any {
-    return when (frame) {
-        is Frame.Text -> frame.readText()
-        is Frame.Binary -> frame.readBytes()
-        else -> throw Exception("Unsupported frame type")
     }
 }
