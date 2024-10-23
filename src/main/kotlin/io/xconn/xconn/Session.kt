@@ -2,7 +2,19 @@ package io.xconn.xconn
 
 import io.xconn.wampproto.Session
 import io.xconn.wampproto.SessionScopeIDGenerator
-import io.xconn.wampproto.messages.*
+import io.xconn.wampproto.messages.Call
+import io.xconn.wampproto.messages.Error
+import io.xconn.wampproto.messages.Goodbye
+import io.xconn.wampproto.messages.Message
+import io.xconn.wampproto.messages.Publish
+import io.xconn.wampproto.messages.Published
+import io.xconn.wampproto.messages.Register
+import io.xconn.wampproto.messages.Registered
+import io.xconn.wampproto.messages.Subscribe
+import io.xconn.wampproto.messages.Subscribed
+import io.xconn.wampproto.messages.Unregister
+import io.xconn.wampproto.messages.Unregistered
+import io.xconn.wampproto.messages.Yield
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
+import io.xconn.wampproto.messages.Event as EventMsg
 import io.xconn.wampproto.messages.Invocation as InvocationMsg
 import io.xconn.wampproto.messages.Result as ResultMsg
 
@@ -26,6 +39,8 @@ class Session(private val baseSession: BaseSession) {
     private val unregisterRequests: MutableMap<Long, UnregisterRequest> = mutableMapOf()
 
     private val publishRequests: MutableMap<Long, CompletableDeferred<Unit>> = mutableMapOf()
+    private val subscribeRequests: MutableMap<Long, SubscribeRequest> = mutableMapOf()
+    private val subscriptions: MutableMap<Long, (Event) -> Unit> = mutableMapOf()
 
     private val goodbyeRequest: CompletableDeferred<Unit> = CompletableDeferred()
 
@@ -106,6 +121,19 @@ class Session(private val baseSession: BaseSession) {
             is Published -> {
                 val request = publishRequests.remove(message.requestID)
                 request?.complete(Unit)
+            }
+            is Subscribed -> {
+                val request = subscribeRequests.remove(message.requestID)
+                if (request != null) {
+                    subscriptions[message.subscriptionID] = request.endpoint
+                    request.completable.complete(Subscription(message.subscriptionID))
+                }
+            }
+            is EventMsg -> {
+                val endpoint = subscriptions[message.subscriptionID]
+                if (endpoint != null) {
+                    endpoint(Event(message.args, message.kwargs, message.details))
+                }
             }
             is Goodbye -> {
                 goodbyeRequest.complete(Unit)
@@ -197,5 +225,20 @@ class Session(private val baseSession: BaseSession) {
         }
 
         return null
+    }
+
+    suspend fun subscribe(
+        topic: String,
+        endpoint: (Event) -> Unit,
+        options: Map<String, Any>? = emptyMap(),
+    ): CompletableDeferred<Subscription> {
+        val subscribe = Subscribe(nextID, topic, options)
+
+        val completable = CompletableDeferred<Subscription>()
+        subscribeRequests[subscribe.requestID] = SubscribeRequest(completable, endpoint)
+
+        baseSession.send(wampSession.sendMessage(subscribe))
+
+        return completable
     }
 }
