@@ -8,6 +8,8 @@ import io.xconn.wampproto.messages.Goodbye
 import io.xconn.wampproto.messages.Message
 import io.xconn.wampproto.messages.Register
 import io.xconn.wampproto.messages.Registered
+import io.xconn.wampproto.messages.Unregister
+import io.xconn.wampproto.messages.Unregistered
 import io.xconn.wampproto.messages.Yield
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +31,7 @@ class Session(private val baseSession: BaseSession) {
     private val callRequests: MutableMap<Long, CompletableDeferred<Result>> = mutableMapOf()
     private val registerRequests: MutableMap<Long, RegisterRequest> = mutableMapOf()
     private val registrations: MutableMap<Long, (Invocation) -> Result> = mutableMapOf()
+    private val unregisterRequests: MutableMap<Long, UnregisterRequest> = mutableMapOf()
     private val goodbyeRequest: CompletableDeferred<Unit> = CompletableDeferred()
 
     init {
@@ -98,6 +101,13 @@ class Session(private val baseSession: BaseSession) {
                     baseSession.send(data)
                 }
             }
+            is Unregistered -> {
+                val request = unregisterRequests.remove(message.requestID)
+                if (request != null) {
+                    registrations.remove(request.registrationID)
+                    request.completable.complete(Unit)
+                }
+            }
             is Goodbye -> {
                 goodbyeRequest.complete(Unit)
             }
@@ -110,6 +120,12 @@ class Session(private val baseSession: BaseSession) {
                     Register.TYPE -> {
                         val registerRequest = registerRequests.remove(message.requestID)
                         registerRequest?.completable?.completeExceptionally(
+                            ApplicationError(message.uri, message.args, message.kwargs),
+                        )
+                    }
+                    Unregister.TYPE -> {
+                        val unregisterRequest = unregisterRequests.remove(message.requestID)
+                        unregisterRequest?.completable?.completeExceptionally(
                             ApplicationError(message.uri, message.args, message.kwargs),
                         )
                     }
@@ -148,6 +164,17 @@ class Session(private val baseSession: BaseSession) {
         registerRequests[register.requestID] = RegisterRequest(completable, endpoint)
 
         baseSession.send(wampSession.sendMessage(register))
+
+        return completable
+    }
+
+    suspend fun unregister(reg: Registration): CompletableDeferred<Unit> {
+        val unregister = Unregister(nextID, reg.registrationID)
+
+        val completable = CompletableDeferred<Unit>()
+        unregisterRequests[unregister.requestID] = UnregisterRequest(completable, reg.registrationID)
+
+        baseSession.send(wampSession.sendMessage(unregister))
 
         return completable
     }

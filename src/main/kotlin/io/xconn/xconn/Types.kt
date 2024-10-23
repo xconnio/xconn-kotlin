@@ -95,3 +95,8 @@ data class Invocation(
     val kwargs: Map<String, Any>? = emptyMap(),
     val details: Map<String, Any> = emptyMap(),
 )
+
+data class UnregisterRequest(
+    val completable: CompletableDeferred<Unit>,
+    val registrationID: Long,
+)
