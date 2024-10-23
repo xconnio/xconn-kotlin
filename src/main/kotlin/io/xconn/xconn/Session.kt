@@ -2,15 +2,7 @@ package io.xconn.xconn
 
 import io.xconn.wampproto.Session
 import io.xconn.wampproto.SessionScopeIDGenerator
-import io.xconn.wampproto.messages.Call
-import io.xconn.wampproto.messages.Error
-import io.xconn.wampproto.messages.Goodbye
-import io.xconn.wampproto.messages.Message
-import io.xconn.wampproto.messages.Register
-import io.xconn.wampproto.messages.Registered
-import io.xconn.wampproto.messages.Unregister
-import io.xconn.wampproto.messages.Unregistered
-import io.xconn.wampproto.messages.Yield
+import io.xconn.wampproto.messages.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +24,9 @@ class Session(private val baseSession: BaseSession) {
     private val registerRequests: MutableMap<Long, RegisterRequest> = mutableMapOf()
     private val registrations: MutableMap<Long, (Invocation) -> Result> = mutableMapOf()
     private val unregisterRequests: MutableMap<Long, UnregisterRequest> = mutableMapOf()
+
+    private val publishRequests: MutableMap<Long, CompletableDeferred<Unit>> = mutableMapOf()
+
     private val goodbyeRequest: CompletableDeferred<Unit> = CompletableDeferred()
 
     init {
@@ -108,6 +103,10 @@ class Session(private val baseSession: BaseSession) {
                     request.completable.complete(Unit)
                 }
             }
+            is Published -> {
+                val request = publishRequests.remove(message.requestID)
+                request?.complete(Unit)
+            }
             is Goodbye -> {
                 goodbyeRequest.complete(Unit)
             }
@@ -177,5 +176,26 @@ class Session(private val baseSession: BaseSession) {
         baseSession.send(wampSession.sendMessage(unregister))
 
         return completable
+    }
+
+    suspend fun publish(
+        topic: String,
+        args: List<Any>? = null,
+        kwargs: Map<String, Any>? = null,
+        options: Map<String, Any> = emptyMap(),
+    ): CompletableDeferred<Unit>? {
+        val publish = Publish(nextID, topic, args, kwargs, options)
+
+        baseSession.send(wampSession.sendMessage(publish))
+
+        val ack = options["acknowledge"] as? Boolean ?: false
+        if (ack) {
+            val completer = CompletableDeferred<Unit>()
+            publishRequests[publish.requestID] = completer
+
+            return completer
+        }
+
+        return null
     }
 }
