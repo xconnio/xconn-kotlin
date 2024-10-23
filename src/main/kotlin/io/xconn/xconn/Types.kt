@@ -5,6 +5,7 @@ import io.ktor.websocket.close
 import io.xconn.wampproto.SessionDetails
 import io.xconn.wampproto.messages.Message
 import io.xconn.wampproto.serializers.Serializer
+import kotlinx.coroutines.CompletableDeferred
 
 interface IBaseSession {
     fun id(): Long
@@ -77,6 +78,19 @@ class BaseSession(
 }
 
 data class Result(
+    val args: List<Any>? = emptyList(),
+    val kwargs: Map<String, Any>? = emptyMap(),
+    val details: Map<String, Any> = emptyMap(),
+)
+
+data class Registration(val registrationID: Long)
+
+data class RegisterRequest(
+    val completable: CompletableDeferred<Registration>,
+    val endpoint: (Invocation) -> Result,
+)
+
+data class Invocation(
     val args: List<Any>? = emptyList(),
     val kwargs: Map<String, Any>? = emptyMap(),
     val details: Map<String, Any> = emptyMap(),

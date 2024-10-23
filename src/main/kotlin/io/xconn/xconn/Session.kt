@@ -6,6 +6,9 @@ import io.xconn.wampproto.messages.Call
 import io.xconn.wampproto.messages.Error
 import io.xconn.wampproto.messages.Goodbye
 import io.xconn.wampproto.messages.Message
+import io.xconn.wampproto.messages.Register
+import io.xconn.wampproto.messages.Registered
+import io.xconn.wampproto.messages.Yield
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +18,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
+import io.xconn.wampproto.messages.Invocation as InvocationMsg
 import io.xconn.wampproto.messages.Result as ResultMsg
 
 class Session(private val baseSession: BaseSession) {
@@ -23,6 +27,8 @@ class Session(private val baseSession: BaseSession) {
     private var idGen: SessionScopeIDGenerator = SessionScopeIDGenerator()
 
     private val callRequests: MutableMap<Long, CompletableDeferred<Result>> = mutableMapOf()
+    private val registerRequests: MutableMap<Long, RegisterRequest> = mutableMapOf()
+    private val registrations: MutableMap<Long, (Invocation) -> Result> = mutableMapOf()
     private val goodbyeRequest: CompletableDeferred<Unit> = CompletableDeferred()
 
     init {
@@ -68,6 +74,30 @@ class Session(private val baseSession: BaseSession) {
                 val request = callRequests.remove(message.requestID)
                 request?.complete(Result(message.args, message.kwargs, message.details))
             }
+            is Registered -> {
+                val request = registerRequests.remove(message.requestID)
+                if (request != null) {
+                    registrations[message.registrationID] = request.endpoint
+                    request.completable.complete(Registration(message.registrationID))
+                }
+            }
+            is InvocationMsg -> {
+                val endpoint = registrations[message.registrationID]
+                if (endpoint != null) {
+                    var msgToSend: Message
+                    try {
+                        val result = endpoint.invoke(Invocation(message.args, message.kwargs, message.details))
+                        msgToSend = Yield(message.requestID, result.args, result.kwargs, result.details)
+                    } catch (e: ApplicationError) {
+                        msgToSend = Error(message.type(), message.requestID, e.message, e.args, e.kwargs)
+                    } catch (e: Exception) {
+                        msgToSend = Error(message.type(), message.requestID, errorRuntimeError, listOf(e.toString()))
+                    }
+
+                    val data = wampSession.sendMessage(msgToSend)
+                    baseSession.send(data)
+                }
+            }
             is Goodbye -> {
                 goodbyeRequest.complete(Unit)
             }
@@ -76,6 +106,12 @@ class Session(private val baseSession: BaseSession) {
                     Call.TYPE -> {
                         val callRequest = callRequests.remove(message.requestID)
                         callRequest?.completeExceptionally(ApplicationError(message.uri, message.args, message.kwargs))
+                    }
+                    Register.TYPE -> {
+                        val registerRequest = registerRequests.remove(message.requestID)
+                        registerRequest?.completable?.completeExceptionally(
+                            ApplicationError(message.uri, message.args, message.kwargs),
+                        )
                     }
                 }
             }
@@ -99,5 +135,20 @@ class Session(private val baseSession: BaseSession) {
         baseSession.send(wampSession.sendMessage(call))
 
         return completer
+    }
+
+    suspend fun register(
+        procedure: String,
+        endpoint: (Invocation) -> Result,
+        options: Map<String, Any>? = null,
+    ): CompletableDeferred<Registration> {
+        val register = Register(nextID, procedure, options)
+
+        val completable = CompletableDeferred<Registration>()
+        registerRequests[register.requestID] = RegisterRequest(completable, endpoint)
+
+        baseSession.send(wampSession.sendMessage(register))
+
+        return completable
     }
 }
