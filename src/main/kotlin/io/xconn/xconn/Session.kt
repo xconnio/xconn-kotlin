@@ -14,6 +14,8 @@ import io.xconn.wampproto.messages.Subscribe
 import io.xconn.wampproto.messages.Subscribed
 import io.xconn.wampproto.messages.Unregister
 import io.xconn.wampproto.messages.Unregistered
+import io.xconn.wampproto.messages.Unsubscribe
+import io.xconn.wampproto.messages.Unsubscribed
 import io.xconn.wampproto.messages.Yield
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +43,7 @@ class Session(private val baseSession: BaseSession) {
     private val publishRequests: MutableMap<Long, CompletableDeferred<Unit>> = mutableMapOf()
     private val subscribeRequests: MutableMap<Long, SubscribeRequest> = mutableMapOf()
     private val subscriptions: MutableMap<Long, (Event) -> Unit> = mutableMapOf()
+    private val unsubscribeRequests: MutableMap<Long, UnsubscribeRequest> = mutableMapOf()
 
     private val goodbyeRequest: CompletableDeferred<Unit> = CompletableDeferred()
 
@@ -135,6 +138,13 @@ class Session(private val baseSession: BaseSession) {
                     endpoint(Event(message.args, message.kwargs, message.details))
                 }
             }
+            is Unsubscribed -> {
+                val request = unsubscribeRequests.remove(message.requestID)
+                if (request != null) {
+                    subscriptions.remove(request.subscriptionID)
+                    request.completable.complete(Unit)
+                }
+            }
             is Goodbye -> {
                 goodbyeRequest.complete(Unit)
             }
@@ -183,7 +193,7 @@ class Session(private val baseSession: BaseSession) {
     suspend fun register(
         procedure: String,
         endpoint: (Invocation) -> Result,
-        options: Map<String, Any>? = null,
+        options: Map<String, Any>? = emptyMap(),
     ): CompletableDeferred<Registration> {
         val register = Register(nextID, procedure, options)
 
@@ -238,6 +248,17 @@ class Session(private val baseSession: BaseSession) {
         subscribeRequests[subscribe.requestID] = SubscribeRequest(completable, endpoint)
 
         baseSession.send(wampSession.sendMessage(subscribe))
+
+        return completable
+    }
+
+    suspend fun unsubscribe(sub: Subscription): CompletableDeferred<Unit> {
+        val unsubscribe = Unsubscribe(nextID, sub.subscriptionID)
+
+        val completable = CompletableDeferred<Unit>()
+        unsubscribeRequests[unsubscribe.requestID] = UnsubscribeRequest(completable, sub.subscriptionID)
+
+        baseSession.send(wampSession.sendMessage(unsubscribe))
 
         return completable
     }

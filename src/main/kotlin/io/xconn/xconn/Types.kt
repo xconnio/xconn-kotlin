@@ -113,3 +113,8 @@ data class Event(
     val kwargs: Map<String, Any>? = emptyMap(),
     val details: Map<String, Any> = emptyMap(),
 )
+
+data class UnsubscribeRequest(
+    val completable: CompletableDeferred<Unit>,
+    val subscriptionID: Long,
+)
