@@ -2,6 +2,8 @@ package io.xconn.xconn
 
 import io.xconn.wampproto.Session
 import io.xconn.wampproto.SessionScopeIDGenerator
+import io.xconn.wampproto.messages.Call
+import io.xconn.wampproto.messages.Error
 import io.xconn.wampproto.messages.Goodbye
 import io.xconn.wampproto.messages.Message
 import kotlinx.coroutines.CompletableDeferred
@@ -13,12 +15,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
+import io.xconn.wampproto.messages.Result as ResultMsg
 
 class Session(private val baseSession: BaseSession) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default + Job())
     private val wampSession: Session = Session(baseSession.serializer())
     private var idGen: SessionScopeIDGenerator = SessionScopeIDGenerator()
 
+    private val callRequests: MutableMap<Long, CompletableDeferred<Result>> = mutableMapOf()
     private val goodbyeRequest: CompletableDeferred<Unit> = CompletableDeferred()
 
     init {
@@ -60,12 +64,40 @@ class Session(private val baseSession: BaseSession) {
 
     private suspend fun processIncomingMessage(message: Message) {
         when (message) {
+            is ResultMsg -> {
+                val request = callRequests.remove(message.requestID)
+                request?.complete(Result(message.args, message.kwargs, message.details))
+            }
             is Goodbye -> {
                 goodbyeRequest.complete(Unit)
+            }
+            is Error -> {
+                when (message.messageType) {
+                    Call.TYPE -> {
+                        val callRequest = callRequests.remove(message.requestID)
+                        callRequest?.completeExceptionally(ApplicationError(message.uri, message.args, message.kwargs))
+                    }
+                }
             }
             else -> {
                 throw ProtocolError("Unexpected message type ${message.javaClass.name}")
             }
         }
+    }
+
+    suspend fun call(
+        procedure: String,
+        args: List<Any>? = null,
+        kwargs: Map<String, Any>? = null,
+        options: Map<String, Any> = emptyMap(),
+    ): CompletableDeferred<Result> {
+        val call = Call(nextID, procedure, args, kwargs, options)
+
+        val completer = CompletableDeferred<Result>()
+        callRequests[call.requestID] = completer
+
+        baseSession.send(wampSession.sendMessage(call))
+
+        return completer
     }
 }

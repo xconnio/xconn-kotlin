@@ -75,3 +75,9 @@ class BaseSession(
         webSocketSession.close()
     }
 }
+
+data class Result(
+    val args: List<Any>? = emptyList(),
+    val kwargs: Map<String, Any>? = emptyMap(),
+    val details: Map<String, Any> = emptyMap(),
+)
