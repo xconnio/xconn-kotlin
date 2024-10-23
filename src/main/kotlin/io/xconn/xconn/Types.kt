@@ -100,3 +100,21 @@ data class UnregisterRequest(
     val completable: CompletableDeferred<Unit>,
     val registrationID: Long,
 )
+
+data class Subscription(val subscriptionID: Long)
+
+data class SubscribeRequest(
+    val completable: CompletableDeferred<Subscription>,
+    val endpoint: (Event) -> Unit,
+)
+
+data class Event(
+    val args: List<Any>? = emptyList(),
+    val kwargs: Map<String, Any>? = emptyMap(),
+    val details: Map<String, Any> = emptyMap(),
+)
+
+data class UnsubscribeRequest(
+    val completable: CompletableDeferred<Unit>,
+    val subscriptionID: Long,
+)
