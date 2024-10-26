@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "io.xconn"
-version = "1.0-SNAPSHOT"
+version = "0.1.0-alpha.1"
 
 repositories {
     mavenCentral()
@@ -19,6 +19,18 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+tasks.register<Jar>("sourcesJar") {
+    archiveClassifier.set("sources")
+    from(sourceSets.main.get().allSource)
+}
+
+tasks.register<Jar>("javadocJar") {
+    dependsOn(tasks.javadoc)
+    archiveClassifier.set("javadoc")
+    from(tasks.javadoc.get().destinationDir)
+}
+
 kotlin {
     jvmToolchain(17)
 }
