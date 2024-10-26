@@ -6,7 +6,6 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.header
-import io.ktor.http.HttpMethod
 import io.ktor.websocket.DefaultWebSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readBytes
@@ -33,11 +32,11 @@ class WAMPSessionJoiner(
             }
         }
 
-    suspend fun join(host: String, port: Int, realm: String): BaseSession {
+    suspend fun join(url: String, realm: String): BaseSession {
         val welcomeCompleter = CompletableDeferred<BaseSession>()
         val joiner = Joiner(realm, serializer, authenticator)
 
-        val session = client.webSocketSession(HttpMethod.Get, host, port)
+        val session = client.webSocketSession(url)
 
         // Send initial Hello message
         session.sendFrame(joiner.sendHello())

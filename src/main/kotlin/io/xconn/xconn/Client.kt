@@ -9,9 +9,9 @@ class Client(
     private var authenticator: ClientAuthenticator = AnonymousAuthenticator(""),
     private var serializer: Serializer = JSONSerializer(),
 ) {
-    suspend fun connect(host: String, port: Int, realm: String): Session {
+    suspend fun connect(url: String, realm: String): Session {
         val joiner = WAMPSessionJoiner(authenticator, serializer)
-        val baseSession: BaseSession = joiner.join(host, port, realm)
+        val baseSession: BaseSession = joiner.join(url, realm)
 
         return Session(baseSession)
     }
