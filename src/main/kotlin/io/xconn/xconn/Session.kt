@@ -71,15 +71,16 @@ class Session(private val baseSession: BaseSession) {
         val goodbyeMsg = Goodbye(mapOf(), closeCloseRealm)
         val data = wampSession.sendMessage(goodbyeMsg)
         baseSession.send(data)
-        coroutineScope.cancel()
 
         try {
             withTimeout(10_000L) {
                 goodbyeRequest.await()
             }
         } catch (e: TimeoutCancellationException) {
+            coroutineScope.cancel()
             baseSession.close()
         } finally {
+            coroutineScope.cancel()
             baseSession.close()
         }
     }
