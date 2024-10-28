@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
@@ -49,7 +50,7 @@ class Session(private val baseSession: BaseSession) {
 
     init {
         coroutineScope.launch {
-            while (true) {
+            while (isActive) {
                 try {
                     val message = baseSession.receive()
                     processIncomingMessage(wampSession.receive(message))
