@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
@@ -49,7 +50,7 @@ class Session(private val baseSession: BaseSession) {
 
     init {
         coroutineScope.launch {
-            while (true) {
+            while (isActive) {
                 try {
                     val message = baseSession.receive()
                     processIncomingMessage(wampSession.receive(message))
@@ -71,15 +72,16 @@ class Session(private val baseSession: BaseSession) {
         val goodbyeMsg = Goodbye(mapOf(), closeCloseRealm)
         val data = wampSession.sendMessage(goodbyeMsg)
         baseSession.send(data)
-        coroutineScope.cancel()
 
         try {
             withTimeout(10_000L) {
                 goodbyeRequest.await()
             }
         } catch (e: TimeoutCancellationException) {
+            coroutineScope.cancel()
             baseSession.close()
         } finally {
+            coroutineScope.cancel()
             baseSession.close()
         }
     }
