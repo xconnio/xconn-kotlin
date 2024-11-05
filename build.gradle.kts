@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "io.xconn"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 
 repositories {
     mavenCentral()
