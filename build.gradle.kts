@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    implementation("io.xconn:wampproto:0.1.0")
+    implementation("io.xconn:wampproto:0.1.1")
     implementation("io.ktor:ktor-client-websockets:2.3.12")
     implementation("io.ktor:ktor-client-cio:2.3.12")
     testImplementation(kotlin("test"))
