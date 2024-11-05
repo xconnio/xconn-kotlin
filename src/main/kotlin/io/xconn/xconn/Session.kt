@@ -195,7 +195,7 @@ class Session(private val baseSession: BaseSession) {
     suspend fun register(
         procedure: String,
         endpoint: (Invocation) -> Result,
-        options: Map<String, Any>? = emptyMap(),
+        options: Map<String, Any> = emptyMap(),
     ): CompletableDeferred<Registration> {
         val register = Register(nextID, procedure, options)
 
@@ -242,7 +242,7 @@ class Session(private val baseSession: BaseSession) {
     suspend fun subscribe(
         topic: String,
         endpoint: (Event) -> Unit,
-        options: Map<String, Any>? = emptyMap(),
+        options: Map<String, Any> = emptyMap(),
     ): CompletableDeferred<Subscription> {
         val subscribe = Subscribe(nextID, topic, options)
 
