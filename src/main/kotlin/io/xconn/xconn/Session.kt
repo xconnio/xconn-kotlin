@@ -31,7 +31,7 @@ import io.xconn.wampproto.messages.Event as EventMsg
 import io.xconn.wampproto.messages.Invocation as InvocationMsg
 import io.xconn.wampproto.messages.Result as ResultMsg
 
-class Session(private val baseSession: BaseSession) {
+class Session(private val baseSession: IBaseSession) {
     private val coroutineScope = CoroutineScope(Dispatchers.Default + Job())
     private val wampSession: Session = Session(baseSession.serializer())
     private var idGen: SessionScopeIDGenerator = SessionScopeIDGenerator()
