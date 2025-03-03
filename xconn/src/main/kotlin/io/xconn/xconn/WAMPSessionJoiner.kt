@@ -11,22 +11,19 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.readBytes
 import io.ktor.websocket.readText
 import io.xconn.wampproto.Joiner
-import io.xconn.wampproto.auth.AnonymousAuthenticator
-import io.xconn.wampproto.auth.ClientAuthenticator
-import io.xconn.wampproto.serializers.JSONSerializer
-import io.xconn.wampproto.serializers.Serializer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
 class WAMPSessionJoiner(
-    private val authenticator: ClientAuthenticator = AnonymousAuthenticator(""),
-    private val serializer: Serializer = JSONSerializer(),
+    private val config: ClientConfig,
 ) {
-    private val subProtocol = getSubProtocol(serializer)
+    private val subProtocol = getSubProtocol(config.serializer)
     private val client =
         HttpClient(CIO) {
-            install(WebSockets)
+            install(WebSockets) {
+                pingInterval = config.keepAliveInterval
+            }
             defaultRequest {
                 header("Sec-WebSocket-Protocol", subProtocol)
             }
@@ -34,7 +31,7 @@ class WAMPSessionJoiner(
 
     suspend fun join(url: String, realm: String): BaseSession {
         val welcomeCompleter = CompletableDeferred<BaseSession>()
-        val joiner = Joiner(realm, serializer, authenticator)
+        val joiner = Joiner(realm, config.serializer, config.authenticator)
 
         val session = client.webSocketSession(url)
 
@@ -51,7 +48,7 @@ class WAMPSessionJoiner(
 
                             if (toSend == null) {
                                 // Complete handshake and session creation
-                                welcomeCompleter.complete(BaseSession(session, joiner.getSessionDetails(), serializer))
+                                welcomeCompleter.complete(BaseSession(session, joiner.getSessionDetails(), config.serializer))
                                 break
                             } else {
                                 session.sendFrame(toSend)
