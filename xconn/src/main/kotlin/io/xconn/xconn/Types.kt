@@ -3,7 +3,10 @@ package io.xconn.xconn
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.websocket.close
 import io.xconn.wampproto.SessionDetails
+import io.xconn.wampproto.auth.AnonymousAuthenticator
+import io.xconn.wampproto.auth.ClientAuthenticator
 import io.xconn.wampproto.messages.Message
+import io.xconn.wampproto.serializers.JSONSerializer
 import io.xconn.wampproto.serializers.Serializer
 import kotlinx.coroutines.CompletableDeferred
 
@@ -117,4 +120,10 @@ data class Event(
 data class UnsubscribeRequest(
     val completable: CompletableDeferred<Unit>,
     val subscriptionID: Long,
+)
+
+data class ClientConfig(
+    var authenticator: ClientAuthenticator = AnonymousAuthenticator(""),
+    var serializer: Serializer = JSONSerializer(),
+    val keepAliveInterval: Long = 0,
 )
