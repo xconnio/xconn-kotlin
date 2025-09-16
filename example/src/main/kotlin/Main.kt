@@ -7,6 +7,7 @@ import io.xconn.wampproto.serializers.CBORSerializer
 import io.xconn.wampproto.serializers.JSONSerializer
 import io.xconn.wampproto.serializers.Serializer
 import io.xconn.xconn.Client
+import io.xconn.xconn.ClientConfig
 import io.xconn.xconn.Result
 import io.xconn.xconn.Session
 import kotlinx.coroutines.runBlocking
@@ -58,19 +59,19 @@ suspend fun connectAnonymous(): Session {
 }
 
 suspend fun connectTicket(authID: String, ticket: String, serializer: Serializer): Session {
-    val client = Client(TicketAuthenticator(authID, emptyMap(), ticket), serializer)
+    val client = Client(ClientConfig(TicketAuthenticator(authID, emptyMap(), ticket), serializer))
 
     return client.connect(URL, REALM)
 }
 
 suspend fun connectCRA(authID: String, secret: String, serializer: Serializer): Session {
-    val client = Client(CRAAuthenticator(authID, emptyMap(), secret), serializer)
+    val client = Client(ClientConfig(CRAAuthenticator(authID, emptyMap(), secret), serializer))
 
     return client.connect(URL, REALM)
 }
 
 suspend fun connectCryptosign(authID: String, privateKey: String, serializer: Serializer): Session {
-    val client = Client(CryptoSignAuthenticator(authID, privateKey, mutableMapOf()), serializer)
+    val client = Client(ClientConfig(CryptoSignAuthenticator(authID, privateKey, mutableMapOf()), serializer))
 
     return client.connect(URL, REALM)
 }

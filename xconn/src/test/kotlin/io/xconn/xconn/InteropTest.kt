@@ -21,7 +21,7 @@ class InteropTest {
     private val procedureAdd = "io.xconn.backend.add2"
 
     private suspend fun testCall(authenticator: ClientAuthenticator, serializer: Serializer, url: String) {
-        val client = Client(authenticator, serializer)
+        val client = Client(ClientConfig(authenticator, serializer))
         val session = client.connect(url, realm)
         val result = session.call(procedureAdd, listOf(2, 2)).await()
         val actual = (result.args!![0] as Number).toInt()
@@ -29,7 +29,7 @@ class InteropTest {
     }
 
     private suspend fun testRPC(authenticator: ClientAuthenticator, serializer: Serializer, url: String) {
-        val client = Client(authenticator, serializer)
+        val client = Client(ClientConfig(authenticator, serializer))
         val session = client.connect(url, realm)
 
         val reg =
@@ -47,7 +47,7 @@ class InteropTest {
     }
 
     private suspend fun testPubSub(authenticator: ClientAuthenticator, serializer: Serializer, url: String) {
-        val client = Client(authenticator, serializer)
+        val client = Client(ClientConfig(authenticator, serializer))
         val session = client.connect(url, realm)
 
         val args = listOf("Hello", "wamp")
