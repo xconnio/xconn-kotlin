@@ -73,9 +73,9 @@ class InteropTest {
                 val authenticators =
                     listOf(
                         AnonymousAuthenticator(""),
-                        TicketAuthenticator("ticket-user", emptyMap(), "ticket-pass"),
-                        CRAAuthenticator("wamp-cra-user", emptyMap(), "cra-secret"),
-                        CRAAuthenticator("wamp-cra-salt-user", emptyMap(), "cra-salt-secret"),
+                        TicketAuthenticator("ticket-user", "ticket-pass"),
+                        CRAAuthenticator("wamp-cra-user", "cra-secret"),
+                        CRAAuthenticator("wamp-cra-salt-user", "cra-salt-secret"),
                         CryptoSignAuthenticator(
                             "cryptosign-user",
                             "150085398329d255ad69e82bf47ced397bcec5b8fbeecd28a80edbbd85b49081",
