@@ -14,6 +14,7 @@ dependencies {
     implementation("com.github.xconnio:wampproto-kotlin:main-SNAPSHOT")
     implementation("io.ktor:ktor-client-websockets:2.3.12")
     implementation("io.ktor:ktor-client-cio:2.3.12")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     testImplementation(kotlin("test"))
 }
 
